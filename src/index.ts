@@ -25,6 +25,7 @@ export default function UXBehaviors(Alpine: AlpineType) {
   registerClipboard(Alpine);
   registerAutosize(Alpine);
   registerDrawer(Alpine);
+  registerJsonValue(Alpine);
 }
 
 // Auto-register when loaded via <script defer> (same pattern as official Alpine plugins)
@@ -78,6 +79,8 @@ function registerDatatable(Alpine: AlpineType) {
       initDeleteButton(el, expression);
     } else if (value === 'row') {
       el.setAttribute('data-row-id', expression);
+    } else if (value === 'action') {
+      initActionButton(el, expression);
     }
   });
 }
@@ -203,6 +206,47 @@ function initDeleteButton(el: HTMLElement, url: string) {
     } else if (confirm(msg)) {
       doDelete();
     }
+  });
+}
+
+function initActionButton(el: HTMLElement, action: string) {
+  const root = getRoot(el);
+  if (!root) return;
+
+  // Before HTMX sends the request, inject selected IDs + action into hx-vals
+  el.addEventListener('htmx:configRequest', ((e: CustomEvent) => {
+    const ids = getSelectedIds(root);
+    e.detail.parameters['ids'] = ids.join(',');
+    e.detail.parameters['action'] = action;
+  }) as EventListener);
+}
+
+// ==========================================================================
+// x-json-value — Sync Alpine data as JSON string into input value
+// ==========================================================================
+//
+// Replaces :value="JSON.stringify(data)" which breaks Alpine CSP build.
+//
+// Usage:
+//   <input type="hidden" x-json-value="hours">
+//   <input type="hidden" x-json-value="buildSaveData()">
+//
+// The directive evaluates the expression and sets el.value = JSON.stringify(result).
+// Re-evaluates reactively via Alpine effect.
+
+function registerJsonValue(Alpine: AlpineType) {
+  Alpine.directive('json-value', (el: HTMLElement, { expression }: { expression: string }, { evaluate, effect, cleanup }: { evaluate: (expr: string) => any; effect: (fn: () => void) => (() => void); cleanup: (fn: () => void) => void }) => {
+    const input = el as HTMLInputElement;
+    const update = () => {
+      try {
+        const data = evaluate(expression);
+        input.value = JSON.stringify(data);
+      } catch {
+        input.value = '';
+      }
+    };
+    const stop = effect(update);
+    cleanup(() => { if (typeof stop === 'function') stop(); });
   });
 }
 

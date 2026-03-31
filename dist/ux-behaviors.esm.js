@@ -6,6 +6,7 @@ function UXBehaviors(Alpine) {
   registerClipboard(Alpine);
   registerAutosize(Alpine);
   registerDrawer(Alpine);
+  registerJsonValue(Alpine);
 }
 if (typeof window !== "undefined") {
   if (window.Alpine) {
@@ -32,6 +33,8 @@ function registerDatatable(Alpine) {
       initDeleteButton(el, expression);
     } else if (value === "row") {
       el.setAttribute("data-row-id", expression);
+    } else if (value === "action") {
+      initActionButton(el, expression);
     }
   });
 }
@@ -138,6 +141,32 @@ function initDeleteButton(el, url) {
     } else if (confirm(msg)) {
       doDelete();
     }
+  });
+}
+function initActionButton(el, action) {
+  const root = getRoot(el);
+  if (!root) return;
+  el.addEventListener("htmx:configRequest", ((e) => {
+    const ids = getSelectedIds(root);
+    e.detail.parameters["ids"] = ids.join(",");
+    e.detail.parameters["action"] = action;
+  }));
+}
+function registerJsonValue(Alpine) {
+  Alpine.directive("json-value", (el, { expression }, { evaluate, effect, cleanup }) => {
+    const input = el;
+    const update = () => {
+      try {
+        const data = evaluate(expression);
+        input.value = JSON.stringify(data);
+      } catch {
+        input.value = "";
+      }
+    };
+    const stop = effect(update);
+    cleanup(() => {
+      if (typeof stop === "function") stop();
+    });
   });
 }
 function registerSwipe(Alpine) {
