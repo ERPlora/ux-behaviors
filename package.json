@@ -10,7 +10,8 @@
     "build": "esbuild src/index.ts --bundle --minify --format=iife --global-name=UXBehaviors --outfile=dist/ux-behaviors.min.js && esbuild src/index.ts --bundle --format=esm --outfile=dist/ux-behaviors.esm.js",
     "dev": "esbuild src/index.ts --bundle --format=iife --global-name=UXBehaviors --outfile=dist/ux-behaviors.js --watch",
     "typecheck": "tsc --noEmit",
-    "test": "node tests/test.js"
+    "test": "node tests/test.js",
+    "release": "npm run build && git add -A && git commit -m \"build: update dist\" && git push origin main && bash scripts/post-release.sh"
   },
   "keywords": ["alpinejs", "plugin", "datatable", "swipe", "bulk-actions", "csp-safe"],
   "author": "ERPlora",
