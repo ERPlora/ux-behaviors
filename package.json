@@ -1,23 +1,30 @@
 {
   "name": "ux-behaviors",
-  "version": "1.0.0",
-  "description": "Zero-dependency, CSP-safe UI behaviors via data attributes. Toggle, dropdown, tabs, accordion, datatable, swipe.",
+  "version": "2.0.0",
+  "description": "Alpine.js plugin — datatable bulk actions, swipe gestures, and more. CSP-safe, zero eval.",
   "main": "dist/ux-behaviors.min.js",
-  "module": "src/ux-behaviors.js",
+  "module": "dist/ux-behaviors.esm.js",
+  "types": "dist/ux-behaviors.d.ts",
   "files": ["dist/", "src/"],
   "scripts": {
-    "build": "esbuild src/ux-behaviors.js --bundle --minify --format=iife --global-name=UXBehaviors --outfile=dist/ux-behaviors.min.js",
-    "dev": "esbuild src/ux-behaviors.js --bundle --format=iife --global-name=UXBehaviors --outfile=dist/ux-behaviors.js --watch",
+    "build": "esbuild src/index.ts --bundle --minify --format=iife --global-name=UXBehaviors --outfile=dist/ux-behaviors.min.js && esbuild src/index.ts --bundle --format=esm --outfile=dist/ux-behaviors.esm.js",
+    "dev": "esbuild src/index.ts --bundle --format=iife --global-name=UXBehaviors --outfile=dist/ux-behaviors.js --watch",
+    "typecheck": "tsc --noEmit",
     "test": "node tests/test.js"
   },
-  "keywords": ["ui", "behaviors", "toggle", "dropdown", "tabs", "accordion", "datatable", "swipe", "csp-safe", "no-eval"],
+  "keywords": ["alpinejs", "plugin", "datatable", "swipe", "bulk-actions", "csp-safe"],
   "author": "ERPlora",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ERPlora/ux-behaviors.git"
   },
+  "peerDependencies": {
+    "alpinejs": ">=3.0.0"
+  },
   "devDependencies": {
-    "esbuild": "^0.25.0"
+    "alpinejs": "^3.14.9",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.0"
   }
 }
