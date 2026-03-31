@@ -1,6 +1,6 @@
 {
   "name": "ux-behaviors",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Alpine.js plugin — datatable bulk actions, swipe gestures, and more. CSP-safe, zero eval.",
   "main": "dist/ux-behaviors.min.js",
   "module": "dist/ux-behaviors.esm.js",

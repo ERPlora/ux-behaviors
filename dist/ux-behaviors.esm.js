@@ -5,6 +5,7 @@ function UXBehaviors(Alpine) {
   registerConfirmDelete(Alpine);
   registerClipboard(Alpine);
   registerAutosize(Alpine);
+  registerDrawer(Alpine);
 }
 if (typeof window !== "undefined" && window.Alpine) {
   window.Alpine.plugin(UXBehaviors);
@@ -227,6 +228,134 @@ function registerAutosize(Alpine) {
     requestAnimationFrame(resize);
     cleanup(() => el.removeEventListener("input", resize));
   });
+}
+function registerDrawer(Alpine) {
+  Alpine.directive("drawer", (el, { value, modifiers, expression }, { cleanup }) => {
+    if (value === "backdrop") {
+      initDrawerBackdrop(el, cleanup);
+      return;
+    }
+    if (value === "trigger") {
+      initDrawerTrigger(el);
+      return;
+    }
+    const noCollapse = modifiers.includes("nocollapse");
+    const noHtmx = modifiers.includes("nohtmx");
+    const breakpoint = parseInt(expression) || getBreakpoint(el);
+    let open = false;
+    let collapsed = false;
+    const update = () => {
+      el.classList.toggle("drawer-open", open);
+      if (!noCollapse) {
+        el.classList.toggle("drawer-collapsed", collapsed);
+      } else {
+        el.classList.toggle("drawer-open", open);
+      }
+      el.dispatchEvent(new CustomEvent("ux:drawer:state", {
+        bubbles: true,
+        detail: { open, collapsed }
+      }));
+    };
+    const toggle = () => {
+      if (window.innerWidth >= breakpoint) {
+        if (noCollapse) {
+          open = !open;
+        } else {
+          collapsed = !collapsed;
+        }
+      } else {
+        open = !open;
+      }
+      update();
+    };
+    const close = () => {
+      if (window.innerWidth >= breakpoint) {
+        if (noCollapse) {
+          open = false;
+        } else {
+          collapsed = true;
+        }
+      } else {
+        open = false;
+      }
+      update();
+    };
+    const openDrawer = () => {
+      open = true;
+      update();
+    };
+    const onToggle = () => toggle();
+    const onOpen = () => openDrawer();
+    const onClose = () => close();
+    const scope = el.closest("[x-data]") || document;
+    scope.addEventListener("drawer-toggle", onToggle);
+    scope.addEventListener("drawer-open", onOpen);
+    scope.addEventListener("drawer-close", onClose);
+    let onHtmx = null;
+    if (!noHtmx) {
+      onHtmx = () => {
+        if (window.innerWidth < breakpoint && open) {
+          open = false;
+          update();
+        }
+      };
+      document.body.addEventListener("htmx:afterSettle", onHtmx);
+    }
+    el._xDrawer = {
+      get open() {
+        return open;
+      },
+      set open(v) {
+        open = v;
+        update();
+      },
+      get collapsed() {
+        return collapsed;
+      },
+      set collapsed(v) {
+        collapsed = v;
+        update();
+      },
+      toggle,
+      close
+    };
+    Alpine.addScopeToNode(el, {
+      get $drawer() {
+        return el._xDrawer;
+      }
+    });
+    cleanup(() => {
+      scope.removeEventListener("drawer-toggle", onToggle);
+      scope.removeEventListener("drawer-open", onOpen);
+      scope.removeEventListener("drawer-close", onClose);
+      if (onHtmx) document.body.removeEventListener("htmx:afterSettle", onHtmx);
+    });
+  });
+}
+function initDrawerBackdrop(el, cleanup) {
+  const onState = ((e) => {
+    el.classList.toggle("drawer-backdrop-open", e.detail.open);
+  });
+  const scope = el.closest("[x-data]") || document;
+  scope.addEventListener("ux:drawer:state", onState);
+  const onClick = () => {
+    scope.dispatchEvent(new CustomEvent("drawer-close", { bubbles: false }));
+  };
+  el.addEventListener("click", onClick);
+  cleanup(() => {
+    scope.removeEventListener("ux:drawer:state", onState);
+    el.removeEventListener("click", onClick);
+  });
+}
+function initDrawerTrigger(el) {
+  el.addEventListener("click", () => {
+    const scope = el.closest("[x-data]") || document;
+    scope.dispatchEvent(new CustomEvent("drawer-toggle", { bubbles: false }));
+  });
+}
+function getBreakpoint(el) {
+  const val = getComputedStyle(el).getPropertyValue("--drawer-breakpoint");
+  return parseInt(val) || 992;
 }
 function getCsrf() {
   const input = document.querySelector("[name=csrfmiddlewaretoken]");

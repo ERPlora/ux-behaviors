@@ -24,6 +24,7 @@ export default function UXBehaviors(Alpine: AlpineType) {
   registerConfirmDelete(Alpine);
   registerClipboard(Alpine);
   registerAutosize(Alpine);
+  registerDrawer(Alpine);
 }
 
 // Auto-register if Alpine is already on window (CDN usage)
@@ -342,6 +343,182 @@ function registerAutosize(Alpine: AlpineType) {
 
     cleanup(() => el.removeEventListener('input', resize));
   });
+}
+
+// ==========================================================================
+// x-drawer — Responsive drawer with open/collapse/backdrop/htmx-close
+// ==========================================================================
+//
+// Works with the UX library .drawer CSS classes.
+//
+// Usage (sidebar — Hub/Cloud pattern):
+//   <aside class="drawer drawer-start glass" x-drawer>...</aside>
+//   <label class="drawer-backdrop" x-drawer:backdrop></label>
+//   <button @click="$dispatch('drawer-toggle')">☰</button>
+//
+// Usage (panel — TPV/POS pattern, no collapse):
+//   <aside class="drawer drawer-end" x-drawer.nocolapse>...</aside>
+//   <button @click="$dispatch('drawer-toggle')">Cart</button>
+//
+// Modifiers:
+//   .nocollapse — desktop toggle fully opens/closes instead of collapsing
+//   .nohtmx    — don't auto-close on htmx:afterSettle
+//
+// The drawer element exposes Alpine reactivity:
+//   $drawer.open       — Boolean, true when drawer is open (mobile)
+//   $drawer.collapsed  — Boolean, true when collapsed (desktop)
+//   $drawer.toggle()   — Smart toggle (collapse on desktop, open/close on mobile)
+//   $drawer.close()    — Close (mobile) or collapse (desktop)
+//
+// Breakpoint: reads CSS --drawer-breakpoint or defaults to 992.
+
+function registerDrawer(Alpine: AlpineType) {
+  // x-drawer — main directive on the drawer element
+  Alpine.directive('drawer', (el, { value, modifiers, expression }, { cleanup }) => {
+    if (value === 'backdrop') {
+      initDrawerBackdrop(el, cleanup);
+      return;
+    }
+    if (value === 'trigger') {
+      initDrawerTrigger(el);
+      return;
+    }
+
+    // Main drawer element
+    const noCollapse = modifiers.includes('nocollapse');
+    const noHtmx = modifiers.includes('nohtmx');
+    const breakpoint = parseInt(expression) || getBreakpoint(el);
+
+    // State
+    let open = false;
+    let collapsed = false;
+
+    const update = () => {
+      // Mobile: use drawer-open class
+      el.classList.toggle('drawer-open', open);
+      // Desktop: use drawer-collapsed class
+      if (!noCollapse) {
+        el.classList.toggle('drawer-collapsed', collapsed);
+      } else {
+        // nocollapse mode: use drawer-open on desktop too
+        el.classList.toggle('drawer-open', open);
+      }
+      // Emit state for backdrop and other listeners
+      el.dispatchEvent(new CustomEvent('ux:drawer:state', {
+        bubbles: true,
+        detail: { open, collapsed },
+      }));
+    };
+
+    const toggle = () => {
+      if (window.innerWidth >= breakpoint) {
+        if (noCollapse) {
+          open = !open;
+        } else {
+          collapsed = !collapsed;
+        }
+      } else {
+        open = !open;
+      }
+      update();
+    };
+
+    const close = () => {
+      if (window.innerWidth >= breakpoint) {
+        if (noCollapse) {
+          open = false;
+        } else {
+          collapsed = true;
+        }
+      } else {
+        open = false;
+      }
+      update();
+    };
+
+    const openDrawer = () => {
+      open = true;
+      update();
+    };
+
+    // Listen for toggle/open/close events (from buttons, triggers, etc.)
+    const onToggle = () => toggle();
+    const onOpen = () => openDrawer();
+    const onClose = () => close();
+
+    // Scope events to nearest x-data container (or document)
+    const scope = el.closest('[x-data]') || document;
+    scope.addEventListener('drawer-toggle', onToggle);
+    scope.addEventListener('drawer-open', onOpen);
+    scope.addEventListener('drawer-close', onClose);
+
+    // Auto-close on HTMX navigation (mobile)
+    let onHtmx: (() => void) | null = null;
+    if (!noHtmx) {
+      onHtmx = () => {
+        if (window.innerWidth < breakpoint && open) {
+          open = false;
+          update();
+        }
+      };
+      document.body.addEventListener('htmx:afterSettle', onHtmx);
+    }
+
+    // Expose API on element for other directives / Alpine expressions
+    (el as any)._xDrawer = {
+      get open() { return open; },
+      set open(v: boolean) { open = v; update(); },
+      get collapsed() { return collapsed; },
+      set collapsed(v: boolean) { collapsed = v; update(); },
+      toggle,
+      close,
+    };
+
+    // Provide $drawer magic within this element's scope
+    Alpine.addScopeToNode(el, {
+      get $drawer() { return (el as any)._xDrawer; }
+    });
+
+    cleanup(() => {
+      scope.removeEventListener('drawer-toggle', onToggle);
+      scope.removeEventListener('drawer-open', onOpen);
+      scope.removeEventListener('drawer-close', onClose);
+      if (onHtmx) document.body.removeEventListener('htmx:afterSettle', onHtmx);
+    });
+  });
+}
+
+function initDrawerBackdrop(el: HTMLElement, cleanup: (fn: () => void) => void) {
+  // Listen for drawer state changes and sync backdrop
+  const onState = ((e: CustomEvent) => {
+    el.classList.toggle('drawer-backdrop-open', e.detail.open);
+  }) as EventListener;
+
+  const scope = el.closest('[x-data]') || document;
+  scope.addEventListener('ux:drawer:state', onState);
+
+  // Click backdrop → close drawer
+  const onClick = () => {
+    scope.dispatchEvent(new CustomEvent('drawer-close', { bubbles: false }));
+  };
+  el.addEventListener('click', onClick);
+
+  cleanup(() => {
+    scope.removeEventListener('ux:drawer:state', onState);
+    el.removeEventListener('click', onClick);
+  });
+}
+
+function initDrawerTrigger(el: HTMLElement) {
+  el.addEventListener('click', () => {
+    const scope = el.closest('[x-data]') || document;
+    scope.dispatchEvent(new CustomEvent('drawer-toggle', { bubbles: false }));
+  });
+}
+
+function getBreakpoint(el: HTMLElement): number {
+  const val = getComputedStyle(el).getPropertyValue('--drawer-breakpoint');
+  return parseInt(val) || 992;
 }
 
 // ==========================================================================
