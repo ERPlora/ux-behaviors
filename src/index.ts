@@ -27,7 +27,7 @@ export default function UXBehaviors(Alpine: AlpineType) {
   registerDrawer(Alpine);
 }
 
-// Auto-register if Alpine is already on window (CDN usage)
+// Auto-register when loaded via <script defer> (same pattern as official Alpine plugins)
 declare global {
   interface Window {
     Alpine?: AlpineType;
@@ -36,8 +36,16 @@ declare global {
   }
 }
 
-if (typeof window !== 'undefined' && window.Alpine) {
-  window.Alpine.plugin(UXBehaviors);
+if (typeof window !== 'undefined') {
+  if (window.Alpine) {
+    // Alpine already loaded (ESM or script without defer)
+    window.Alpine.plugin(UXBehaviors);
+  } else {
+    // Alpine not yet loaded (defer scripts) — register when Alpine fires
+    document.addEventListener('alpine:init', () => {
+      if (window.Alpine) window.Alpine.plugin(UXBehaviors);
+    });
+  }
 }
 
 // ==========================================================================

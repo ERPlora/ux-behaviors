@@ -7,8 +7,14 @@ function UXBehaviors(Alpine) {
   registerAutosize(Alpine);
   registerDrawer(Alpine);
 }
-if (typeof window !== "undefined" && window.Alpine) {
-  window.Alpine.plugin(UXBehaviors);
+if (typeof window !== "undefined") {
+  if (window.Alpine) {
+    window.Alpine.plugin(UXBehaviors);
+  } else {
+    document.addEventListener("alpine:init", () => {
+      if (window.Alpine) window.Alpine.plugin(UXBehaviors);
+    });
+  }
 }
 function registerDatatable(Alpine) {
   Alpine.directive("datatable", (el, { value, expression }, { evaluate, cleanup }) => {
