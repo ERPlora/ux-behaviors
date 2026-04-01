@@ -26,6 +26,7 @@ export default function UXBehaviors(Alpine: AlpineType) {
   registerAutosize(Alpine);
   registerDrawer(Alpine);
   registerJsonValue(Alpine);
+  registerDispatch(Alpine);
 }
 
 // Auto-register when loaded via <script defer> (same pattern as official Alpine plugins)
@@ -571,6 +572,42 @@ function initDrawerTrigger(el: HTMLElement) {
 function getBreakpoint(el: HTMLElement): number {
   const val = getComputedStyle(el).getPropertyValue('--drawer-breakpoint');
   return parseInt(val) || 992;
+}
+
+// ==========================================================================
+// x-dispatch — CSP-safe event dispatch on click
+// ==========================================================================
+//
+// Replaces @click="$dispatch('event-name')" which breaks Alpine CSP build.
+//
+// Usage:
+//   <button x-dispatch="drawer-toggle">Menu</button>
+//   <button x-dispatch="open-bug-report">Report</button>
+//   <label x-dispatch="tier-selected" x-dispatch:detail='{"slug":"basic"}'>Basic</label>
+//
+// Dispatches a CustomEvent with bubbles:true on the nearest [x-data] scope.
+// Optional detail via data-dispatch-detail attribute (JSON string).
+
+function registerDispatch(Alpine: AlpineType) {
+  Alpine.directive('dispatch', (el: HTMLElement, { value, expression }: { value: string | null; expression: string }) => {
+    if (value === 'detail') return; // sub-attribute, skip
+
+    const eventName = expression;
+    el.addEventListener('click', () => {
+      const scope = el.closest('[x-data]') || document;
+      let detail: any = undefined;
+
+      const detailAttr = el.getAttribute('data-dispatch-detail') || el.getAttribute('x-dispatch:detail');
+      if (detailAttr) {
+        try { detail = JSON.parse(detailAttr); } catch { /* ignore */ }
+      }
+
+      scope.dispatchEvent(new CustomEvent(eventName, {
+        bubbles: true,
+        detail,
+      }));
+    });
+  });
 }
 
 // ==========================================================================

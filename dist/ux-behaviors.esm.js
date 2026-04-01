@@ -7,6 +7,7 @@ function UXBehaviors(Alpine) {
   registerAutosize(Alpine);
   registerDrawer(Alpine);
   registerJsonValue(Alpine);
+  registerDispatch(Alpine);
 }
 if (typeof window !== "undefined") {
   if (window.Alpine) {
@@ -391,6 +392,27 @@ function initDrawerTrigger(el) {
 function getBreakpoint(el) {
   const val = getComputedStyle(el).getPropertyValue("--drawer-breakpoint");
   return parseInt(val) || 992;
+}
+function registerDispatch(Alpine) {
+  Alpine.directive("dispatch", (el, { value, expression }) => {
+    if (value === "detail") return;
+    const eventName = expression;
+    el.addEventListener("click", () => {
+      const scope = el.closest("[x-data]") || document;
+      let detail = void 0;
+      const detailAttr = el.getAttribute("data-dispatch-detail") || el.getAttribute("x-dispatch:detail");
+      if (detailAttr) {
+        try {
+          detail = JSON.parse(detailAttr);
+        } catch {
+        }
+      }
+      scope.dispatchEvent(new CustomEvent(eventName, {
+        bubbles: true,
+        detail
+      }));
+    });
+  });
 }
 function getCsrf() {
   const input = document.querySelector("[name=csrfmiddlewaretoken]");
