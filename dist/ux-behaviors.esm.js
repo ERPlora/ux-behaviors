@@ -6,8 +6,6 @@ function UXBehaviors(Alpine) {
   registerClipboard(Alpine);
   registerAutosize(Alpine);
   registerDrawer(Alpine);
-  registerJsonValue(Alpine);
-  registerDispatch(Alpine);
 }
 if (typeof window !== "undefined") {
   if (window.Alpine) {
@@ -152,23 +150,6 @@ function initActionButton(el, action) {
     e.detail.parameters["ids"] = ids.join(",");
     e.detail.parameters["action"] = action;
   }));
-}
-function registerJsonValue(Alpine) {
-  Alpine.directive("json-value", (el, { expression }, { evaluate, effect, cleanup }) => {
-    const input = el;
-    const update = () => {
-      try {
-        const data = evaluate(expression);
-        input.value = JSON.stringify(data);
-      } catch {
-        input.value = "";
-      }
-    };
-    const stop = effect(update);
-    cleanup(() => {
-      if (typeof stop === "function") stop();
-    });
-  });
 }
 function registerSwipe(Alpine) {
   Alpine.directive("swipe", (el, { expression }, { cleanup }) => {
@@ -393,27 +374,6 @@ function getBreakpoint(el) {
   const val = getComputedStyle(el).getPropertyValue("--drawer-breakpoint");
   return parseInt(val) || 992;
 }
-function registerDispatch(Alpine) {
-  Alpine.directive("dispatch", (el, { value, expression }) => {
-    if (value === "detail") return;
-    const eventName = expression;
-    el.addEventListener("click", () => {
-      const scope = el.closest("[x-data]") || document;
-      let detail = void 0;
-      const detailAttr = el.getAttribute("data-dispatch-detail") || el.getAttribute("x-dispatch:detail");
-      if (detailAttr) {
-        try {
-          detail = JSON.parse(detailAttr);
-        } catch {
-        }
-      }
-      scope.dispatchEvent(new CustomEvent(eventName, {
-        bubbles: true,
-        detail
-      }));
-    });
-  });
-}
 function getCsrf() {
   const input = document.querySelector("[name=csrfmiddlewaretoken]");
   if (input) return input.value;
@@ -426,7 +386,6 @@ export {
 /**
  * UX Behaviors v2.0.0
  * Alpine.js plugin — datatable bulk actions, swipe gestures, and more.
- * CSP-safe, zero eval.
  *
  * Usage:
  *   import UXBehaviors from 'ux-behaviors';

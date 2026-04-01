@@ -1,7 +1,6 @@
 /**
  * UX Behaviors v2.0.0
  * Alpine.js plugin — datatable bulk actions, swipe gestures, and more.
- * CSP-safe, zero eval.
  *
  * Usage:
  *   import UXBehaviors from 'ux-behaviors';
@@ -25,8 +24,6 @@ export default function UXBehaviors(Alpine: AlpineType) {
   registerClipboard(Alpine);
   registerAutosize(Alpine);
   registerDrawer(Alpine);
-  registerJsonValue(Alpine);
-  registerDispatch(Alpine);
 }
 
 // Auto-register when loaded via <script defer> (same pattern as official Alpine plugins)
@@ -220,35 +217,6 @@ function initActionButton(el: HTMLElement, action: string) {
     e.detail.parameters['ids'] = ids.join(',');
     e.detail.parameters['action'] = action;
   }) as EventListener);
-}
-
-// ==========================================================================
-// x-json-value — Sync Alpine data as JSON string into input value
-// ==========================================================================
-//
-// Replaces :value="JSON.stringify(data)" which breaks Alpine CSP build.
-//
-// Usage:
-//   <input type="hidden" x-json-value="hours">
-//   <input type="hidden" x-json-value="buildSaveData()">
-//
-// The directive evaluates the expression and sets el.value = JSON.stringify(result).
-// Re-evaluates reactively via Alpine effect.
-
-function registerJsonValue(Alpine: AlpineType) {
-  Alpine.directive('json-value', (el: HTMLElement, { expression }: { expression: string }, { evaluate, effect, cleanup }: { evaluate: (expr: string) => any; effect: (fn: () => void) => (() => void); cleanup: (fn: () => void) => void }) => {
-    const input = el as HTMLInputElement;
-    const update = () => {
-      try {
-        const data = evaluate(expression);
-        input.value = JSON.stringify(data);
-      } catch {
-        input.value = '';
-      }
-    };
-    const stop = effect(update);
-    cleanup(() => { if (typeof stop === 'function') stop(); });
-  });
 }
 
 // ==========================================================================
@@ -572,42 +540,6 @@ function initDrawerTrigger(el: HTMLElement) {
 function getBreakpoint(el: HTMLElement): number {
   const val = getComputedStyle(el).getPropertyValue('--drawer-breakpoint');
   return parseInt(val) || 992;
-}
-
-// ==========================================================================
-// x-dispatch — CSP-safe event dispatch on click
-// ==========================================================================
-//
-// Replaces @click="$dispatch('event-name')" which breaks Alpine CSP build.
-//
-// Usage:
-//   <button x-dispatch="drawer-toggle">Menu</button>
-//   <button x-dispatch="open-bug-report">Report</button>
-//   <label x-dispatch="tier-selected" x-dispatch:detail='{"slug":"basic"}'>Basic</label>
-//
-// Dispatches a CustomEvent with bubbles:true on the nearest [x-data] scope.
-// Optional detail via data-dispatch-detail attribute (JSON string).
-
-function registerDispatch(Alpine: AlpineType) {
-  Alpine.directive('dispatch', (el: HTMLElement, { value, expression }: { value: string | null; expression: string }) => {
-    if (value === 'detail') return; // sub-attribute, skip
-
-    const eventName = expression;
-    el.addEventListener('click', () => {
-      const scope = el.closest('[x-data]') || document;
-      let detail: any = undefined;
-
-      const detailAttr = el.getAttribute('data-dispatch-detail') || el.getAttribute('x-dispatch:detail');
-      if (detailAttr) {
-        try { detail = JSON.parse(detailAttr); } catch { /* ignore */ }
-      }
-
-      scope.dispatchEvent(new CustomEvent(eventName, {
-        bubbles: true,
-        detail,
-      }));
-    });
-  });
 }
 
 // ==========================================================================
